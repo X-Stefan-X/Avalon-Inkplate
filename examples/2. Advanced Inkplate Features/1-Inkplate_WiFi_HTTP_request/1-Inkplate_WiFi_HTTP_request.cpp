@@ -18,6 +18,8 @@
 #include "Inkplate.h"               //Include Inkplate library to the sketch
 #include <WiFi.h>                   //Include ESP32 WiFi library to our sketch
 #include <HTTPClient.h>             //Include HTTP library to this sketch
+#include "ArduinoJson.h"
+#include "Arduino.h"
 
 // Injected now as build_flags for all common examples
 //#define ssid ""                     //Name of the WiFi network (SSID) that you want to connect Inkplate to
@@ -64,20 +66,114 @@ void setup() {
   display.print("connected");                         //If it's connected, notify user
   display.partialUpdate();
 
+
+  //environment.​depth
+/*
+
   HTTPClient http;
-  if(http.begin("http://example.com/index.html")) {   //Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
-    if(http.GET()>0) {                                //If connection was successful, try to read content of the Web page and display it on screen
+  if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/")) {   //Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
+    if(http.GET()>0) {
+                                      //If connection was successful, try to read content of the Web page and display it on screen
       String htmlText;
       htmlText = http.getString();
-      display.setTextSize(1);                         //Set smaller text size, so everything can fit on screen
       display.clearDisplay();
+      display.setTextSize(2);
       display.setCursor(0, 0);
-      display.print(htmlText);
+      display.print("Tiefe");
+  
       display.display();
+    }
+  }*/
+  
+
+}
+void initDisplayText() {
+  display.clearDisplay();
+  display.setTextSize(3);
+  display.setCursor(0, 0);
+  display.print("Tiefe");
+  display.setCursor(400, 0);
+  display.print("TWA");
+  display.setCursor(0, 300);
+  display.print("Speed");
+  display.setCursor(400, 300);
+  display.print("TWS");
+  display.display();
+}
+
+void ErrorHandlingValues(String ErrorText, int Postion_x, int Postion_y) {
+  display.setCursor(Postion_x, Postion_y + 25);
+  display.print("deserializeJson() failed: ");
+  display.println(ErrorText);
+  display.partialUpdate();
+}
+
+void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, int Postion_y) {
+  { // Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
+    if (http.GET() > 0) {
+      // Stream& input -- richtige Länge eintragen.
+      StaticJsonDocument<192> doc;
+      DeserializationError error = deserializeJson(doc, http.getStream());
+      if (error) {
+        ErrorHandlingValues(error.c_str(), Postion_x, Postion_y);
+      }
+
+      const char *meta_description = doc["meta"]["description"]; // "Depth related data"
+      double value = doc["value"];                               // 245.01020000000003
+      const char *source = doc["$source"];                       // "simulator.0"
+      const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
+      // Print values
+      display.setCursor(Postion_x, Postion_y);
+      display.setTextSize(10);
+      char valueStr[10];
+      dtostrf(value, 0, 1, valueStr);
+      display.printf("%s", valueStr);
+      display.setCursor(Postion_x, Postion_y + 100);
+      display.setTextSize(1);
+      display.print(timestamp);
+      display.partialUpdate();
+      http.end();
     }
   }
 }
 
+/**
+ * The main loop function of the program.
+ * This function is executed repeatedly in an infinite loop.
+ * It connects to a web page using HTTP and retrieves data from it.
+ * The retrieved data is then displayed on an Inkplate display.
+ */
 void loop() {
-  //Nothing
+
+//Get Part
+  HTTPClient http;
+  http.useHTTP10(true);
+  http.setTimeout(1000);
+  http.setReuse(true);
+// Error Strings
+  if (WiFi.status() != WL_CONNECTED) {
+    display.clearDisplay();
+    display.print("WiFi not connected");
+    display.partialUpdate();
+    return;
+  }
+  
+  //Depth
+  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/")) {
+    ValueAndDisplayHandling(http, 192, 50, 0); 
+    }
+  // TWA
+  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/twa/")) {
+    ValueAndDisplayHandling(http, 192, 450, 0);
+    }
+//Speed 
+if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/Speed/")) {
+  ValueAndDisplayHandling(http, 192, 50, 300);
+  } 
+  //tws
+  if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/tws/")) {
+    ValueAndDisplayHandling(http, 192, 450, 300);
+  }
+
+
 }
