@@ -27,6 +27,23 @@
 
 Inkplate display(INKPLATE_1BIT);    //Create an object on Inkplate library and also set library into 1 Bit mode (Monochrome)
 
+
+
+
+void initDisplayText() {
+  display.clearDisplay();
+  display.setTextSize(3);
+  display.setCursor(0, 0);
+  display.print("Tiefe");
+  display.setCursor(400, 0);
+  display.print("TWA");
+  display.setCursor(0, 300);
+  display.print("SOG");
+  display.setCursor(400, 300);
+  display.print("TWS");
+  display.display();
+}
+
 void setup() {
   display.begin();                  //Init Inkplate library (you should call this function ONLY ONCE)
   display.clearDisplay();           //Clear frame buffer of display
@@ -65,46 +82,27 @@ void setup() {
   }
   display.print("connected");                         //If it's connected, notify user
   display.partialUpdate();
+  delay(1000);                                        //Wait for a second
+  display.clearDisplay();                             //Clear everything in frame buffer
+  display.setCursor(100,160);
+  display.setTextSize(10);                             //Set print cursor to new position
+  display.println("Willkommen");                       
+  display.setCursor(80, 300);
+  display.println("auf Avalon!");
+  display.display();                                  //Refresh the screen
+  delay(5000);                                        //Wait for 2 seconds
+  display.clearDisplay();                             //Clear everything in frame buffer
 
-
-  //environment.​depth
-/*
-
-  HTTPClient http;
-  if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/")) {   //Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
-    if(http.GET()>0) {
-                                      //If connection was successful, try to read content of the Web page and display it on screen
-      String htmlText;
-      htmlText = http.getString();
-      display.clearDisplay();
-      display.setTextSize(2);
-      display.setCursor(0, 0);
-      display.print("Tiefe");
-  
-      display.display();
-    }
-  }*/
-  
-
+  initDisplayText(); 
 }
-void initDisplayText() {
-  display.clearDisplay();
-  display.setTextSize(3);
-  display.setCursor(0, 0);
-  display.print("Tiefe");
-  display.setCursor(400, 0);
-  display.print("TWA");
-  display.setCursor(0, 300);
-  display.print("Speed");
-  display.setCursor(400, 300);
-  display.print("TWS");
-  display.display();
-}
+
 
 void ErrorHandlingValues(String ErrorText, int Postion_x, int Postion_y) {
-  display.setCursor(Postion_x, Postion_y + 25);
+  display.setCursor(Postion_x, Postion_y + 5);
+  display.setTextSize(2);
   display.print("deserializeJson() failed: ");
-  display.println(ErrorText);
+  display.setCursor(Postion_x +10, Postion_y + 5);
+  display.print(ErrorText);
   display.partialUpdate();
 }
 
@@ -117,22 +115,22 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
       if (error) {
         ErrorHandlingValues(error.c_str(), Postion_x, Postion_y);
       }
-
+      else
+      {
       const char *meta_description = doc["meta"]["description"]; // "Depth related data"
       double value = doc["value"];                               // 245.01020000000003
       const char *source = doc["$source"];                       // "simulator.0"
       const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
+
       // Print values
       display.setCursor(Postion_x, Postion_y);
       display.setTextSize(10);
-      char valueStr[10];
-      dtostrf(value, 0, 1, valueStr);
-      display.printf("%s", valueStr);
+      display.print(value);
       display.setCursor(Postion_x, Postion_y + 100);
       display.setTextSize(1);
       display.print(timestamp);
       display.partialUpdate();
-      http.end();
+      }
     }
   }
 }
@@ -160,20 +158,20 @@ void loop() {
   
   //Depth
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/")) {
-    ValueAndDisplayHandling(http, 192, 50, 0); 
+    ValueAndDisplayHandling(http, 192, 0, 30); 
     }
   // TWA
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/twa/")) {
-    ValueAndDisplayHandling(http, 192, 450, 0);
+    ValueAndDisplayHandling(http, 192, 400, 30);
     }
 //Speed 
-if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/Speed/")) {
-  ValueAndDisplayHandling(http, 192, 50, 300);
+if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedOverGround/")) {
+  ValueAndDisplayHandling(http, 192, 0, 330);
   } 
   //tws
-  if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/tws/")) {
-    ValueAndDisplayHandling(http, 192, 450, 300);
+  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/tws/")) {
+    ValueAndDisplayHandling(http, 192, 400, 330);
   }
 
-
+//http.end();
 }
