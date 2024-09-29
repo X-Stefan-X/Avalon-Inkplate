@@ -31,6 +31,7 @@ Inkplate display(INKPLATE_1BIT);    //Create an object on Inkplate library and a
 
 
 void initDisplayText() {
+  Serial.println("initDisplayText");
   display.clearDisplay();
   display.setTextSize(3);
   display.setCursor(5, 0);
@@ -48,16 +49,20 @@ void initDisplayText() {
   display.setCursor(5, 400);
   display.print("Luftdruck");
   display.setCursor(305, 400);
-  display.print("Wassertemp in Grad");
+  display.print("Wassertemp °C");
    display.drawThickLine(0, 595, 600, 595, 1, 1);
   display.setCursor(5, 600);
   display.print("Trip Log");
   display.setCursor(305, 600);
   display.print("Position");
   display.display();
+  Serial.println("End initDisplayText");
 }
 
 void setup() {
+  Serial.begin(115200);             //Start serial communication
+  Serial.println("Starting...");
+
   display.begin();                  //Init Inkplate library (you should call this function ONLY ONCE)
   display.clearDisplay();           //Clear frame buffer of display
   display.setRotation(1);
@@ -66,11 +71,13 @@ void setup() {
   display.setCursor(0, 0);          //Set print position
   display.setTextColor(BLACK, WHITE);                 //Set text color to black and background color to white
   display.println("Scanning for WiFi networks...");    //Write text
+  Serial.println("Scanning for WiFi networks...");    //Write text to serial monitor
   display.display();                                  //Send everything to display (refresh display)
 
   int n = WiFi.scanNetworks();                        //Start searching WiFi networks and put the nubmer of found WiFi networks in variable n
   if (n == 0) {                                       //If you did not find any network, show the message and stop the program.
     display.print("No WiFi networks found!");
+    Serial.println("No WiFi networks found!");
     display.partialUpdate();
     while (true);
   } else {
@@ -80,14 +87,19 @@ void setup() {
       display.print((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? 'O' : '*');
       display.print('\n');
       display.print(WiFi.RSSI(i), DEC);
+      Serial.print(WiFi.SSID(i));
     }
-    display.partialUpdate();                          //(Partial) refresh thescreen
+    display.partialUpdate();   
+    delay(2000);                       //(Partial) refresh thescreen
   }
 
-  display.clearDisplay();                             //Clear everything in frame buffer
-  display.setCursor(0,0);                             //Set print cursor to new position
+  //display.clearDisplay();                             //Clear everything in frame buffer
+  //display.setCursor(0,0);                             //Set print cursor to new position
+  display.print('\n');
   display.print("Connecting to ");                    //Print the name of WiFi network
   display.print(WIFI_SSID);
+  Serial.println("Connecting to ");                    //Print the name of WiFi network
+  Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASS);                             //Try to connect to WiFi network
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);                                      //While it is connecting to network, display dot every second, just to know that Inkplate is alive.
@@ -95,6 +107,7 @@ void setup() {
     display.partialUpdate();
   }
   display.print("connected");                         //If it's connected, notify user
+  Serial.println("connected");                         //If it's connected, notify user
   display.partialUpdate();
   delay(1000);                                        //Wait for a second
   display.clearDisplay();                             //Clear everything in frame buffer
@@ -107,11 +120,14 @@ void setup() {
   delay(3000);                                        //Wait for 2 seconds
   display.clearDisplay();                             //Clear everything in frame buffer
 
+  Serial.println("End Wifi Connection");
   initDisplayText(); 
 }
 
 
 void ErrorHandlingValues(String ErrorText, int Postion_x, int Postion_y) {
+  Serial.println("deserializeJson failed");
+  Serial.println(ErrorText);
   display.setCursor(Postion_x, Postion_y);
   display.setTextSize(2);
   display.print("deserializeJson failed");
@@ -120,9 +136,10 @@ void ErrorHandlingValues(String ErrorText, int Postion_x, int Postion_y) {
   display.partialUpdate();
 }
 
-void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, int Postion_y) {
+void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, int Postion_y, char* Called) {
   { // Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
     if (http.GET() > 0) {
+      Serial.println("GET request successful");
       // Stream& input -- richtige Länge eintragen.
       StaticJsonDocument<192> doc;
       DeserializationError error = deserializeJson(doc, http.getStream());
@@ -131,61 +148,100 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
       }
       else
       {
-      const char *meta_description = doc["meta"]["description"]; // "Depth related data"
-      const char *value = doc["value"];                               // 245.01020000000003
-      const char *source = doc["$source"];                       // "simulator.0"
-      const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
-      const char *unit = doc["unit"];                            // "m"
-      const char *path= doc["path"];                             // "environment.depth.belowTransducer"
+        const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
+        Serial.print("Timestamp: ");
+        Serial.println(timestamp);
 
-      // Print values
-      display.setCursor(Postion_x, Postion_y);
-      if (path == "navigation.position") {
-        // Latitude and Longitude are ptinted in two lines
-        const char* positionstring = strtok(strdup(value), ",");
-        display.setTextSize(2);
-        display.print("Lat: ");
-        display.print(value);
-        display.setCursor(Postion_x, Postion_y + 20);
-        display.print("Lon: ");
-        display.print(value);
-      } else {
-        // All other values are printed in one line
-        try {
+        // Print values
+        display.setCursor(Postion_x, Postion_y);
+        if (Called == "position") {
+          // Latitude and Longitude are ptinted in two lines
+          const char *meta_description = doc["meta"]["description"]; // "Depth related data"
+          Serial.print("Meta_description: ");
+          Serial.println(meta_description);        
+          double latitude = doc["value"]["latitude"];                               // 245.01020000000003
+          Serial.print("latitude: ");  
+          Serial.printf("%f", latitude);
+          double longitude = doc["value"]["longitude"];                               // 245.01020000000003
+          Serial.print("longitude: ");  
+          Serial.printf("%f", longitude);
+          const char *source = doc["$source"];                       // "simulator.0"
+          Serial.print("Source: ");
+          Serial.println(source);
+          const char *unit = doc["meta"]["units"];                            // "m"
+          Serial.print("Unit: ");
+          Serial.println(unit);        
+          Serial.println("Printing Latitude and Longitude");
+          display.setTextSize(2);
+          display.print("Lat: ");
+          display.print(latitude);
+          display.setCursor(Postion_x, Postion_y + 20);
+          display.print("Lon: ");
+          display.print(longitude);
+        } else {
+          // All other values are printed in one line
           // Try to convert the value to a number
-          double num = atof(value);
-          if (unit =="rad") {
-            num = num * RAD_TO_DEG;
+          const char *meta_description = doc["meta"]["description"]; // "Depth related data"
+          Serial.print("Meta_description: ");
+          Serial.println(meta_description);        
+          double value = doc["value"];                               // 245.01020000000003
+          Serial.print("Value: ");  
+          Serial.printf("%f \n",value);
+          const char *source = doc["$source"];                       // "simulator.0"
+          Serial.print("Source: ");
+          Serial.println(source);
+          const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
+          Serial.print("Timestamp: ");
+          Serial.println(timestamp);
+          const char *unit = doc["meta"]["units"];                            // "m"
+          Serial.print("Unit: ");
+          Serial.println(unit);     
+
+          if (strcmp(unit, "rad") == 0) {
+            value = value * RAD_TO_DEG;
             unit = "°";
-          } else if (unit == "m/s") {
-            num = num * 1.94384;
+          } else if (strcmp(unit, "m/s") == 0) {
+            value = value * 1.94384;
             unit = "kn";
-          } else if (unit == "Pa") {
-            num = num / 100;
+          } else if (strcmp(unit, "Pa") == 0) {
+            value = value / 100;
             unit = "hPa";
-          } else if (unit == "m") {
-            num = num * 0.00053996;
+          } else if (strcmp(unit, "m") == 0) {
+            value = value * 0.00053996;
             unit = "Nm";
-          } else if (unit == "K") { 
-            num = num - 273.15;
+          } else if (strcmp(unit, "K") == 0) { 
+            value = value - 273.15;
             unit = "°C";
-          } else if (unit == "ratio") {
-            num = num * 100;
+          } else if (strcmp(unit, "ratio") == 0) {
+            value = value * 100;
             unit = "%";
           }  
+          Serial.print("New unit: ");
+          Serial.println(unit);
           display.setTextSize(12);
-          display.printf("0.4f", num);
-        } catch (const std::invalid_argument& e) {  
-          display.setTextSize(12);
-          display.printf("0.4f", value);
+          if (Called == "depth") {
+            display.printf("%3.1f", value);
+            Serial.print("Ausgabe: ");
+            Serial.printf("%3.1f", value);
+            Serial.print("\n");
+          } else if (Called == "stw" || Called == "sog") {
+            display.printf("%1.1f", value);
+            Serial.print("Ausgabe: ");
+            Serial.printf("%1.1f", value);
+            Serial.print("\n"); 
+            }
+            else {
+            display.printf("%4.0f", value);
+            Serial.print("Ausgabe: ");
+            Serial.printf("%4.0f", value);
+            Serial.print("\n");
+          }
         }
-                
-      }
-      // Put the timestamp on the next line
-      display.setCursor(Postion_x, Postion_y + 100);
-      display.setTextSize(1);
-      display.print(timestamp);
-      display.partialUpdate();
+        // Put the timestamp on the next line
+        display.setCursor(Postion_x, Postion_y + 100);
+        display.setTextSize(1);
+        display.print(timestamp);
+        display.partialUpdate();
       }
     }
   }
@@ -206,43 +262,53 @@ void loop() {
   http.setReuse(true);
 // Error Strings
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected");
     display.clearDisplay();
     display.print("WiFi not connected");
     display.partialUpdate();
+    delay(1000);
     return;
   }
   
   //Depth
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowTransducer/")) {
-    ValueAndDisplayHandling(http, 192, 5, 30); 
+    ValueAndDisplayHandling(http, 192, 5, 30, "depth"); 
+    Serial.println("Depth");
     }
   // COG
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/courseOverGroundTrue/")) {
-    ValueAndDisplayHandling(http, 192, 305, 30);
+    ValueAndDisplayHandling(http, 192, 305, 30, "cog");
+    Serial.println("COG");
     }
 //STW 
 if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedThroughWater/")) {
-  ValueAndDisplayHandling(http, 192, 5, 230);
+  ValueAndDisplayHandling(http, 192, 5, 230, "stw");
+  Serial.println("STW");
   } 
   //SOG
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedOverGround/")) {
-    ValueAndDisplayHandling(http, 192, 305, 230);
+    ValueAndDisplayHandling(http, 192, 305, 230, "sog");
+    Serial.println("SOG");
   }
 //environment.outside.pressure
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/outside/pressure/")) {
-    ValueAndDisplayHandling(http, 192, 5, 430);
+    ValueAndDisplayHandling(http, 192, 5, 430, "pressure");
+    Serial.println("Pressure");
   }
 //environment.water.temperature
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/water/temperature/")) {
-    ValueAndDisplayHandling(http, 192, 305, 430);
+    ValueAndDisplayHandling(http, 192, 305, 430, "watertemp");
+    Serial.println("Water Temp");
   }
 //navigation.trip.log 
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/trip/log/")) {
-    ValueAndDisplayHandling(http, 192, 5, 630);
+    ValueAndDisplayHandling(http, 192, 5, 630, "triplog");
+    Serial.println("Trip Log");
   }
 //navigation.position
   if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/position/")) {
-    ValueAndDisplayHandling(http, 192, 305, 630);
+    ValueAndDisplayHandling(http, 192, 305, 630, "position");
+    Serial.println("Position");
   }
 
 //http.end();
