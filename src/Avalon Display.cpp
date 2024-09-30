@@ -206,7 +206,7 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           } else if (strcmp(unit, "Pa") == 0) {
             value = value / 100;
             unit = "hPa";
-          } else if (strcmp(unit, "m") == 0) {
+          } else if (strcmp(unit, "m") == 0 || strcmp(Called, "depth" =! 0)) {
             value = value * 0.00053996;
             unit = "Nm";
           } else if (strcmp(unit, "K") == 0) { 
@@ -220,9 +220,9 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.println(unit);
           display.setTextSize(12);
           if (strcmp(Called, "depth") == 0) {
-            display.printf("%3.1f", value);
+            display.printf("%2.1f", value);
             Serial.print("Ausgabe: ");
-            Serial.printf("%3.1f", value);
+            Serial.printf("%2.1f", value);
             Serial.print("\n");
           } else if (strcmp(Called, "stw") == 0 || strcmp(Called, "sog") == 0) {
             display.printf("%1.1f", value);
