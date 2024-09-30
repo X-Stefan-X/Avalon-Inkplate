@@ -154,7 +154,7 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
 
         // Print values
         display.setCursor(Postion_x, Postion_y);
-        if (Called == "position") {
+        if (strcmp(Called, "position") == 0) {
           // Latitude and Longitude are ptinted in two lines
           const char *meta_description = doc["meta"]["description"]; // "Depth related data"
           Serial.print("Meta_description: ");
@@ -172,12 +172,12 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.print("Unit: ");
           Serial.println(unit);        
           Serial.println("Printing Latitude and Longitude");
-          display.setTextSize(2);
+          display.setTextSize(3);
           display.print("Lat: ");
-          display.print(latitude);
+          display.printf("%f",latitude);
           display.setCursor(Postion_x, Postion_y + 20);
           display.print("Lon: ");
-          display.print(longitude);
+          display.printf("%f", longitude);
         } else {
           // All other values are printed in one line
           // Try to convert the value to a number
@@ -219,12 +219,12 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.print("New unit: ");
           Serial.println(unit);
           display.setTextSize(12);
-          if (Called == "depth") {
+          if (strcmp(Called, "depth") == 0) {
             display.printf("%3.1f", value);
             Serial.print("Ausgabe: ");
             Serial.printf("%3.1f", value);
             Serial.print("\n");
-          } else if (Called == "stw" || Called == "sog") {
+          } else if (strcmp(Called, "stw") == 0 || strcmp(Called, "sog") == 0) {
             display.printf("%1.1f", value);
             Serial.print("Ausgabe: ");
             Serial.printf("%1.1f", value);
