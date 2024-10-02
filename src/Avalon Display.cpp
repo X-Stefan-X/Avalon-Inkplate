@@ -258,6 +258,7 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
  */
 void loop() {
 
+
 //Get Part
   HTTPClient http;
   http.useHTTP10(true);
@@ -267,52 +268,59 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected");
     display.clearDisplay();
+    display.setTextSize(3);
     display.print("WiFi not connected");
     display.partialUpdate();
     delay(1000);
     return;
   }
-  
-  //Depth
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowTransducer/")) {
-    ValueAndDisplayHandling(http, 192, 5, 30, "depth"); 
-    Serial.println("Depth");
+
+  for (int i = 0; i < 20000; i++)
+  {   
+    //Depth
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowTransducer/")) {
+      ValueAndDisplayHandling(http, 192, 5, 30, "depth"); 
+      Serial.println("Depth");
+      }
+    // COG
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/courseOverGroundTrue/")) {
+      ValueAndDisplayHandling(http, 192, 305, 30, "cog");
+      Serial.println("COG");
+      }
+  //STW 
+  if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedThroughWater/")) {
+    ValueAndDisplayHandling(http, 192, 5, 230, "stw");
+    Serial.println("STW");
+    } 
+    //SOG
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedOverGround/")) {
+      ValueAndDisplayHandling(http, 192, 305, 230, "sog");
+      Serial.println("SOG");
     }
-  // COG
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/courseOverGroundTrue/")) {
-    ValueAndDisplayHandling(http, 192, 305, 30, "cog");
-    Serial.println("COG");
+  //environment.outside.pressure
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/outside/pressure/")) {
+      ValueAndDisplayHandling(http, 192, 5, 430, "pressure");
+      Serial.println("Pressure");
     }
-//STW 
-if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedThroughWater/")) {
-  ValueAndDisplayHandling(http, 192, 5, 230, "stw");
-  Serial.println("STW");
-  } 
-  //SOG
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedOverGround/")) {
-    ValueAndDisplayHandling(http, 192, 305, 230, "sog");
-    Serial.println("SOG");
+  //environment.water.temperature
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/water/temperature/")) {
+      ValueAndDisplayHandling(http, 192, 305, 430, "watertemp");
+      Serial.println("Water Temp");
+    }
+  //navigation.trip.log 
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/trip/log/")) {
+      ValueAndDisplayHandling(http, 192, 5, 630, "triplog");
+      Serial.println("Trip Log");
+    }
+  //navigation.position
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/position/")) {
+      ValueAndDisplayHandling(http, 192, 305, 630, "position");
+      Serial.println("Position");
+    }
   }
-//environment.outside.pressure
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/outside/pressure/")) {
-    ValueAndDisplayHandling(http, 192, 5, 430, "pressure");
-    Serial.println("Pressure");
-  }
-//environment.water.temperature
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/water/temperature/")) {
-    ValueAndDisplayHandling(http, 192, 305, 430, "watertemp");
-    Serial.println("Water Temp");
-  }
-//navigation.trip.log 
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/trip/log/")) {
-    ValueAndDisplayHandling(http, 192, 5, 630, "triplog");
-    Serial.println("Trip Log");
-  }
-//navigation.position
-  if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/position/")) {
-    ValueAndDisplayHandling(http, 192, 305, 630, "position");
-    Serial.println("Position");
-  }
+
+// Display neu aufbauen
+initDisplayText();
 
 //http.end();
 }
