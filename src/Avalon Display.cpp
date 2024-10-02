@@ -49,7 +49,7 @@ void initDisplayText() {
   display.setCursor(5, 400);
   display.print("Luftdruck");
   display.setCursor(305, 400);
-  display.print("Wassertemp °C");
+  display.print("Wassertemp Celsius");
    display.drawThickLine(0, 595, 600, 595, 1, 1);
   display.setCursor(5, 600);
   display.print("Trip Log");
@@ -206,9 +206,12 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           } else if (strcmp(unit, "Pa") == 0) {
             value = value / 100;
             unit = "hPa";
-          } else if (strcmp(unit, "m") == 0 || strcmp(Called, "depth" =! 0)) {
+          } else if (strcmp(unit, "m") == 0)
+          { if (strcmp(Called, "depth") == 0) {}
+          else {
             value = value * 0.00053996;
             unit = "Nm";
+          }
           } else if (strcmp(unit, "K") == 0) { 
             value = value - 273.15;
             unit = "°C";
@@ -219,7 +222,7 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.print("New unit: ");
           Serial.println(unit);
           display.setTextSize(12);
-          if (strcmp(Called, "depth") == 0) {
+          if (strcmp(Called, "depth") == 0 || strcmp(Called, "watertemp") == 0) {
             display.printf("%2.1f", value);
             Serial.print("Ausgabe: ");
             Serial.printf("%2.1f", value);
