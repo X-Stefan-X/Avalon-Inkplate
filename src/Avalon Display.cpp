@@ -49,10 +49,10 @@ void initDisplayText() {
   display.setCursor(5, 400);
   display.print("Luftdruck");
   display.setCursor(305, 400);
-  display.print("Wassertemp Celsius");
+  display.print("Wind in kn");
    display.drawThickLine(0, 595, 600, 595, 1, 1);
   display.setCursor(5, 600);
-  display.print("Trip Log");
+  display.print("Windwinkel");
   display.setCursor(305, 600);
   display.print("Position");
   display.display();
@@ -222,7 +222,7 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.print("New unit: ");
           Serial.println(unit);
           display.setTextSize(12);
-          if (strcmp(Called, "depth") == 0 || strcmp(Called, "watertemp") == 0) {
+          if (strcmp(Called, "depth") == 0 || strcmp(Called, "watertemp") == 0 || strcmp(Called, "windspeed") == 0) {
             display.printf("%2.1f", value);
             Serial.print("Ausgabe: ");
             Serial.printf("%2.1f", value);
@@ -278,7 +278,7 @@ void loop() {
   for (int i = 0; i < 20000; i++)
   {   
     //Depth
-    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowTransducer/")) {
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowSurface/")) {
       ValueAndDisplayHandling(http, 192, 5, 30, "depth"); 
       Serial.println("Depth");
       }
@@ -303,14 +303,14 @@ void loop() {
       Serial.println("Pressure");
     }
   //environment.water.temperature
-    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/water/temperature/")) {
-      ValueAndDisplayHandling(http, 192, 305, 430, "watertemp");
-      Serial.println("Water Temp");
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/speedApparent/")) {
+      ValueAndDisplayHandling(http, 192, 305, 430, "windspeed");
+      Serial.println("Wind Speed App");
     }
   //navigation.trip.log 
-    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/trip/log/")) {
-      ValueAndDisplayHandling(http, 192, 5, 630, "triplog");
-      Serial.println("Trip Log");
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/angleApparent/")) {
+      ValueAndDisplayHandling(http, 192, 5, 630, "windangle");
+      Serial.println("Wind Angle App");
     }
   //navigation.position
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/position/")) {
