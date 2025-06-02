@@ -33,29 +33,93 @@ Inkplate display(INKPLATE_1BIT);    //Create an object on Inkplate library and a
 void initDisplayText() {
   Serial.println("initDisplayText");
   display.clearDisplay();
-  display.setTextSize(3);
-  display.setCursor(5, 0);
-  display.print("Tiefe in m");
-  display.setCursor(305, 0);
-  display.print("COG in Grad");
-  display.drawThickLine(0, 195, 600, 195, 1, 1);
-  display.setCursor(5, 200);
-  display.print("STW in kn");
-  display.setCursor(305, 200);
-  display.print("SOG in kn");
-  display.drawThickLine(0, 395, 600, 395, 1, 1);
-  display.drawThickLine(299, 0, 299, 800, 1, 2);
-
-  display.setCursor(5, 400);
-  display.print("Luftdruck");
-  display.setCursor(305, 400);
-  display.print("Wind in kn");
-   display.drawThickLine(0, 595, 600, 595, 1, 1);
-  display.setCursor(5, 600);
-  display.print("Windwinkel");
-  display.setCursor(305, 600);
-  display.print("Position");
   display.display();
+
+  // Draw the mid line
+  display.drawThickLine(280, 0, 280, 800, 1, 20);
+
+  display.setTextSize(3);
+
+  display.setTextColor(WHITE, BLACK);
+  display.cp437(true); // Use full charset
+  display.setCursor(273, 10);
+  display.write(0x03);
+  display.setCursor(273, 70);
+  display.print("I");
+  display.setCursor(273, 100);
+  display.print("n");
+  display.setCursor(273, 130);
+  display.print("k");
+  display.setCursor(273, 160);
+  display.print("p");
+  display.setCursor(273, 190);
+  display.print("l");
+  display.setCursor(273, 220);
+  display.print("a");
+  display.setCursor(273, 250);
+  display.print("t");
+  display.setCursor(273, 280);
+  display.print("e");
+  display.setCursor(273, 340);
+  display.print("4");
+  display.setCursor(273, 400);
+  display.print("A");
+  display.setCursor(273, 430);
+  display.print("v");
+  display.setCursor(273, 460);
+  display.print("a");
+  display.setCursor(273, 490);
+  display.print("l");
+  display.setCursor(273, 520);
+  display.print("o");
+  display.setCursor(273, 550);
+  display.print("n");
+  display.setCursor(273, 610);
+  display.print("2");
+  display.setCursor(273, 640);
+  display.print("0");
+  display.setCursor(273, 670);
+  display.print("2");
+  display.setCursor(273, 700);
+  display.print("5");
+
+
+  display.setTextColor(BLACK, WHITE);
+  display.setTextSize(3);
+  display.setCursor(3, 0);
+  display.print("Tiefe in m");
+  display.setCursor(303, 0);
+  display.print("COG in Grad");
+
+  display.drawThickLine(0, 158, 600, 158, 1, 1);
+  display.setCursor(3, 160);
+  display.print("STW in kn");
+  display.setCursor(303, 160);
+  display.print("SOG in kn");
+
+  display.drawThickLine(0, 318, 600, 318, 1, 1);
+  display.setCursor(5, 320);
+  display.print("Luftdruck");
+  display.setCursor(305, 320);
+  display.print("Position");
+
+  display.drawThickLine(0, 478, 600, 478, 1, 1);
+  display.setCursor(3, 480);
+  display.print("TWA in Grad");
+  display.setCursor(303, 480);
+  display.print("AWA in Grad");
+
+  display.drawThickLine(0, 638, 600, 638, 1, 1);
+  display.setCursor(3, 640);
+  display.print("TWS in kn");
+  display.setCursor(303, 640);
+  display.print("AWS in kn");
+
+  //display.setTextSize(4);
+  //display.print("(c)2025 Inkplate 4 Avalon");
+  display.display();
+  display.setTextSize(10); // Remeber: At Position is setTextSize(4) and then back to 9
+
   Serial.println("End initDisplayText");
 }
 
@@ -87,7 +151,7 @@ void setup() {
       display.print((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? 'O' : '*');
       display.print('\n');
       display.print(WiFi.RSSI(i), DEC);
-      Serial.print(WiFi.SSID(i));
+      Serial.println(WiFi.SSID(i));
     }
     display.partialUpdate();   
     delay(2000);                       //(Partial) refresh thescreen
@@ -139,7 +203,7 @@ void ErrorHandlingValues(String ErrorText, int Postion_x, int Postion_y) {
 void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, int Postion_y, char* Called) {
   { // Now try to connect to some web page (in this example www.example.com. And yes, this is a valid Web page :))
     if (http.GET() > 0) {
-      Serial.println("GET request successful");
+      Serial.printf("GET request successful for %s ", Called);
       // Stream& input -- richtige Länge eintragen.
       StaticJsonDocument<192> doc;
       DeserializationError error = deserializeJson(doc, http.getStream());
@@ -149,54 +213,60 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
       else
       {
         const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
-        Serial.print("Timestamp: ");
-        Serial.println(timestamp);
+        Serial.printf("Timestamp: %s", timestamp);
 
         // Print values
         display.setCursor(Postion_x, Postion_y);
         if (strcmp(Called, "position") == 0) {
           // Latitude and Longitude are ptinted in two lines
           const char *meta_description = doc["meta"]["description"]; // "Depth related data"
-          Serial.print("Meta_description: ");
-          Serial.println(meta_description);        
+          //Serial.printf("Meta_description: %s", meta_description);   
           double latitude = doc["value"]["latitude"];                               // 245.01020000000003
-          Serial.print("latitude: ");  
-          Serial.printf("%f", latitude);
+          //Serial.printf("latitude: %f", latitude);  
           double longitude = doc["value"]["longitude"];                               // 245.01020000000003
-          Serial.print("longitude: ");  
-          Serial.printf("%f", longitude);
+          //Serial.printf("longitude: %f", longitude);
           const char *source = doc["$source"];                       // "simulator.0"
-          Serial.print("Source: ");
-          Serial.println(source);
+          //Serial.printf("Source: %s", source);
           const char *unit = doc["meta"]["units"];                            // "m"
-          Serial.print("Unit: ");
-          Serial.println(unit);        
+          //Serial.printf("Unit: %s", unit);
           Serial.println("Printing Latitude and Longitude");
           display.setTextSize(3);
-          display.print("Lat: ");
-          display.printf("%f",latitude);
+          display.printf("Lat: %f",latitude);
           display.setCursor(Postion_x, Postion_y + 20);
-          display.print("Lon: ");
-          display.printf("%f", longitude);
-        } else {
+          display.printf("Lon: %f", longitude);
+        } else if (strcmp(Called, "pressuretrend") == 0) {
+            const char *meta_description = doc["meta"]["description"]; // "Depth related data"
+            //Serial.printf("Meta_description: %s", meta_description);     
+            double severity = doc["value"]["severity"];                               // 245.01020000000003
+            //Serial.printf("severity: %f", severity);
+            const char *tendency = doc["value"]["tendency"];                               // 245.01020000000003
+            //Serial.printf("tendency: %s", tendency);  
+            const char *changerate = doc["value"]["changerate"];                               // 245.01020000000003
+            //Serial.printf("changerate: %s", changerate);
+            const char *source = doc["$source"];                       // "simulator.0"
+            //Serial.printf("Source: %s", source);
+            const char *unit = doc["meta"]["units"];                            // "m"
+            //Serial.printf("Unit: %s", unit);
+            Serial.println("Printing Barometer Trend");
+            display.setTextSize(3);
+            display.printf("T: %1.0f - %s", severity, tendency);
+            display.setCursor(Postion_x, Postion_y + 20);
+            display.printf("R: %s", changerate);
+        } 
+        else {
           // All other values are printed in one line
           // Try to convert the value to a number
           const char *meta_description = doc["meta"]["description"]; // "Depth related data"
-          Serial.print("Meta_description: ");
-          Serial.println(meta_description);        
+          //Serial.printf("Meta_description: %s", meta_description);     
           double value = doc["value"];                               // 245.01020000000003
-          Serial.print("Value: ");  
-          Serial.printf("%f \n",value);
+          //Serial.printf("Value: %f ", value);
           const char *source = doc["$source"];                       // "simulator.0"
-          Serial.print("Source: ");
-          Serial.println(source);
+          //Serial.printf("Source: %s", source);
           const char *timestamp = doc["timestamp"];                  // "2024-04-26T18:24:41.384Z"
-          Serial.print("Timestamp: ");
-          Serial.println(timestamp);
+          //Serial.printf("Timestamp: %s", timestamp);
           const char *unit = doc["meta"]["units"];                            // "m"
-          Serial.print("Unit: ");
-          Serial.println(unit);     
-
+          //Serial.printf("Unit: %s", unit);
+          
           if (strcmp(unit, "rad") == 0) {
             value = value * RAD_TO_DEG;
             unit = "°";
@@ -222,28 +292,30 @@ void ValueAndDisplayHandling(HTTPClient &http, int JsonLength, int Postion_x, in
           Serial.print("New unit: ");
           Serial.println(unit);
           display.setTextSize(12);
+          
           if (strcmp(Called, "depth") == 0 || strcmp(Called, "watertemp") == 0 || strcmp(Called, "windspeed") == 0) {
             display.printf("%2.1f", value);
-            Serial.print("Ausgabe: ");
-            Serial.printf("%2.1f", value);
-            Serial.print("\n");
+            Serial.printf("Ausgabe: %2.1f \n", value);
           } else if (strcmp(Called, "stw") == 0 || strcmp(Called, "sog") == 0) {
             display.printf("%1.1f", value);
-            Serial.print("Ausgabe: ");
-            Serial.printf("%1.1f", value);
-            Serial.print("\n"); 
-            }
-            else {
+            Serial.printf("Ausgabe: %1.1f \n", value);
+          } else if (strcmp(Called, "windangle") == 0 || strcmp(Called, "cog") == 0 ) {
+            display.printf("%3.0f", value);
+            Serial.printf("Ausgabe: %3.0f \n", value);
+          } else {
+            if (strcmp(Called, "pressure") == 0) {display.setTextSize(8);}
             display.printf("%4.0f", value);
-            Serial.print("Ausgabe: ");
-            Serial.printf("%4.0f", value);
-            Serial.print("\n");
+            Serial.printf("Ausgabe: %4.0f \n", value);
           }
         }
         // Put the timestamp on the next line
-        display.setCursor(Postion_x, Postion_y + 100);
-        display.setTextSize(1);
-        display.print(timestamp);
+        if (strcmp(Called, "pressuretrend") != 0) {
+          if (strcmp(Called, "pressure") == 0) {display.setCursor(Postion_x, Postion_y + 70);}
+          else {display.setCursor(Postion_x, Postion_y + 100);}
+          
+          display.setTextSize(1);
+          display.print(timestamp);
+        }
         display.partialUpdate();
       }
     }
@@ -279,44 +351,50 @@ void loop() {
   {   
     //Depth
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/depth/belowSurface/")) {
-      ValueAndDisplayHandling(http, 192, 5, 30, "depth"); 
-      Serial.println("Depth");
+      ValueAndDisplayHandling(http, 192, 3, 25, "depth"); 
       }
     // COG
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/courseOverGroundTrue/")) {
-      ValueAndDisplayHandling(http, 192, 305, 30, "cog");
-      Serial.println("COG");
+      ValueAndDisplayHandling(http, 192, 303, 25, "cog");
       }
   //STW 
   if(http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedThroughWater/")) {
-    ValueAndDisplayHandling(http, 192, 5, 230, "stw");
-    Serial.println("STW");
+    ValueAndDisplayHandling(http, 192, 3, 185, "stw");
     } 
     //SOG
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/speedOverGround/")) {
-      ValueAndDisplayHandling(http, 192, 305, 230, "sog");
-      Serial.println("SOG");
+      ValueAndDisplayHandling(http, 192, 303, 185, "sog");
     }
   //environment.outside.pressure
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/outside/pressure/")) {
-      ValueAndDisplayHandling(http, 192, 5, 430, "pressure");
-      Serial.println("Pressure");
+      ValueAndDisplayHandling(http, 192, 3, 345, "pressure");
     }
-  //environment.water.temperature
-    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/speedApparent/")) {
-      ValueAndDisplayHandling(http, 192, 305, 430, "windspeed");
-      Serial.println("Wind Speed App");
+    
+    //environment.barometer.trend
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/barometer/trend/")) {
+      ValueAndDisplayHandling(http, 192, 3, 425, "pressuretrend");
     }
-  //navigation.trip.log 
-    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/angleApparent/")) {
-      ValueAndDisplayHandling(http, 192, 5, 630, "windangle");
-      Serial.println("Wind Angle App");
-    }
-  //navigation.position
+ //navigation.position
     if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/navigation/position/")) {
-      ValueAndDisplayHandling(http, 192, 305, 630, "position");
-      Serial.println("Position");
+      ValueAndDisplayHandling(http, 192, 303, 345, "position");
     }
+    //environment.wind.angleTrueGround 
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/angleTrueGround/")) {
+      ValueAndDisplayHandling(http, 192, 3, 505, "windangle");
+    }
+  //environment.wind.angleApparent
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/angleApparent/")) {
+      ValueAndDisplayHandling(http, 192, 303, 505, "windangle");
+    }
+  //environment.wind.speedOverGround
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/speedOverGround/")) {
+      ValueAndDisplayHandling(http, 192, 3, 665, "windspeed");
+    }
+  //environment.wind.speedApparent
+    if (http.begin("http://openplotter:3000/signalk/v1/api/vessels/self/environment/wind/speedApparent/")) {
+      ValueAndDisplayHandling(http, 192, 303, 665, "windspeed");
+    }
+ 
   }
 
 // Display neu aufbauen
