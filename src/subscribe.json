@@ -1,0 +1,81 @@
+{
+  "context": "vessels.self",
+  "subscribe": [
+
+    {
+      "path": "environment.depth.belowSurface",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "navigation.courseOverGroundTrue",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "navigation.speedThroughWater",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "navigation.speedOverGround",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "environment.outside.pressure",
+      "period": 10000,
+      "format": "delta",
+      "policy": "fixed"
+    },
+    {
+      "path": "environment.barometer.trend",
+      "period": 10000,
+      "format": "delta",
+      "policy": "fixed"
+    },
+    {
+      "path": "navigation.position",
+      "period": 3000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "environment.wind.angleTrueGround",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "environment.wind.angleApparent",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "environment.wind.speedOverGround",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    },
+    {
+      "path": "environment.wind.speedApparent",
+      "period": 1000,
+      "format": "delta",
+      "policy": "ideal",
+      "minPeriod": 1000
+    }
+  ]
+}
