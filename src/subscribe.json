@@ -32,13 +32,13 @@
     },
     {
       "path": "environment.outside.pressure",
-      "period": 10000,
+      "period": 60000,
       "format": "delta",
       "policy": "fixed"
     },
     {
       "path": "environment.barometer.trend",
-      "period": 10000,
+      "period": 60000,
       "format": "delta",
       "policy": "fixed"
     },

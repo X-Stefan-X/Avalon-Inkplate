@@ -34,8 +34,59 @@ using namespace websockets; // Use the websockets namespace to avoid typing it a
 Inkplate display(INKPLATE_1BIT);    //Create an object on Inkplate library and also set library into 1 Bit mode (Monochrome)
 boolean heartbeat = false; // Variable to check if the heartbeat is received
 
+
 WebsocketsClient wsclient; // Create a WebsocketsClient object
 
+
+double depth;
+double courseOverGroundTrue;
+double speedThroughWater;
+double speedOverGround;
+double pressure;
+//trend
+double severity;
+const char *tendency = "";
+const char *changerate = "";
+//position
+double latitude;
+double longitude;
+double angleTrueGround;
+double angleApparent;
+double tws;
+double aws;
+
+//old values
+double depth_old;
+double courseOverGroundTrue_old;
+double speedThroughWater_old;
+double speedOverGround_old;
+double pressure_old;
+//trend
+double severity_old;
+const char *tendency_old = "";
+const char *changerate_old = "";
+//position
+double latitude_old;
+double longitude_old;
+double angleTrueGround_old;
+double angleApparent_old;
+double tws_old;
+double aws_old;
+
+void displayheartbeat() {
+  //Heartbeat
+  display.setCursor(273,10);
+  display.setTextSize(3);
+  display.setTextColor(WHITE, BLACK);
+  if (heartbeat) {
+    display.write(0x03); // Print the heart symbol
+    heartbeat = false; // Reset heartbeat flag
+  } else {
+    display.write(0x07); // Print the heart symbol
+    heartbeat = true; // Set heartbeat flag
+  }
+  display.setTextColor(BLACK, WHITE);
+}
 
 void initDisplayText() {
   Serial.println("Initializing Display...wipe...draw...print...display");
@@ -150,49 +201,62 @@ void wsEventHandler(WebsocketsEvent event, String data) {
 }
 
 void  HandleNavigationPosition(JsonObject valueObject) {
+  latitude = valueObject["value"]["latitude"];                               // 245.01020000000003
+  //Serial.printf("latitude: %f", latitude);  
+  longitude = valueObject["value"]["longitude"];                               // 245.01020000000003
+  //Serial.printf("longitude: %f", longitude);
+}
+void displayNavigationPosition() {
   int position_x = 303;
   int position_y = 345;
 
-  double latitude = valueObject["value"]["latitude"];                               // 245.01020000000003
-  Serial.printf("latitude: %f", latitude);  
-  double longitude = valueObject["value"]["longitude"];                               // 245.01020000000003
-  Serial.printf("longitude: %f", longitude);
-  
   // Print values
   display.setCursor(position_x, position_y);
   display.setTextSize(3);
   display.printf("Lat: %f",latitude);
   display.setCursor(position_x, position_y + 25);
   display.printf("Lon: %f", longitude);
+  display.partialUpdate();
 }
 void HandlePressureTrend(JsonObject valueObject) {
+  severity = valueObject["value"]["severity"];                               // 245.01020000000003
+  //Serial.printf("severity: %f", severity);
+  tendency = valueObject["value"]["tendency"];                               // 245.01020000000003
+  //Serial.printf("tendency: %s", tendency);  
+  changerate = valueObject["value"]["changerate"];                               // 245.01020000000003
+  //Serial.printf("changerate: %s", changerate);
+}
+void displayPressureTrend() {
   int position_x = 3;
   int position_y = 425;
 
-  double severity = valueObject["value"]["severity"];                               // 245.01020000000003
-  Serial.printf("severity: %f", severity);
-  const char *tendency = valueObject["value"]["tendency"];                               // 245.01020000000003
-  Serial.printf("tendency: %s", tendency);  
-  const char *changerate = valueObject["value"]["changerate"];                               // 245.01020000000003
-  Serial.printf("changerate: %s", changerate);
-  Serial.println("Printing Barometer Trend");
+  //Serial.println("Printing Barometer Trend");
   display.setCursor(position_x, position_y);
   display.setTextSize(3);
   display.printf("T: %1.0f %s", severity, tendency);
   display.setCursor(position_x, position_y + 25);
   display.printf("R: %s", changerate);
+  display.partialUpdate();
 }
-void HandleSpeed(double value, int position_x, int position_y) {
+double HandleSpeed(double value) {
+  return value * 1.94384;
+}
+void displaySpeed(double value, int position_x, int position_y) {
   display.setCursor(position_x, position_y);
   value = value * 1.94384;
   display.printf("%2.1f", value);
-  Serial.printf("Ausgabe: %2.1f \n", value);
+  //Serial.printf("Ausgabe: %2.1f \n", value);
+  display.partialUpdate();
 }
-void HandleDEG(double value, int position_x, int position_y) {
+double HandleDEG(double value) {
+  return value * RAD_TO_DEG;
+}
+void displayDEG(double value, int position_x, int position_y) {
   display.setCursor(position_x, position_y);
   value = value * RAD_TO_DEG;
   display.printf("%3.0f", value);
-  Serial.printf("Ausgabe: %3.0f \n", value);
+  //Serial.printf("Ausgabe: %3.0f \n", value);
+  display.partialUpdate();
 }
 
 // handleMessage
@@ -202,19 +266,6 @@ void wsMessageHandler(WebsocketsMessage message){
   const int MessageLen = message.length(); // Get the length of the message
   Serial.printf("Message length: %d\n", MessageLen);
 
-  //Heartbeat
-  display.setCursor(273,10);
-  display.setTextSize(3);
-  display.setTextColor(WHITE, BLACK);
-  if (heartbeat) {
-    display.write(0x03); // Print the heart symbol
-    heartbeat = false; // Reset heartbeat flag
-  } else {
-    display.write(0x07); // Print the heart symbol
-    heartbeat = true; // Set heartbeat flag
-  }
-  display.setTextColor(BLACK, WHITE);
-  
   if (message.isContinuation()) {
     Serial.println("Received a continuation message, ignoring.");
     return; // Ignore continuation messages
@@ -243,11 +294,11 @@ void wsMessageHandler(WebsocketsMessage message){
         return;
       }
       const char *timestamp = update["timestamp"];                  // "2024-04-26T18:24:41.384Z"
-      Serial.printf("Timestamp: %s ", timestamp);
+      Serial.printf("Timestamp: %s \n", timestamp);
 
       JsonObject valueObject = update["values"][0];
       const char *path = valueObject["path"];                      // "navigation.position"
-      Serial.printf("Path: %s ", path);
+      Serial.printf("Path: %s \n", path);
 
       if (strcmp(path, "navigation.position") == 0) {
         HandleNavigationPosition(valueObject);
@@ -255,35 +306,31 @@ void wsMessageHandler(WebsocketsMessage message){
         HandlePressureTrend(valueObject);
       } else {
         double value = valueObject["value"];                               // 245.01020000000003
-        Serial.printf("Value: %f ", value);
-        display.setTextSize(10); // Set text size to 10 for large values
+        //Serial.printf("Value: %f ", value);
+        
         if (strcmp(path, "environment.outside.pressure") == 0) {
-          display.setCursor(3, 345);
-          value = value / 100;
-          display.setTextSize(8);
-          display.printf("%4.0f", value);
-          Serial.printf("Ausgabe: %4.0f \n", value);
+          pressure = value / 100;
+          //Serial.printf("Ausgabe: %4.0f \n", pressure);
         } else if (strcmp(path, "environment.wind.angleTrueGround") == 0) {
-          HandleDEG(value, 3, 505);
+          angleTrueGround = HandleDEG(value);
         } else if (strcmp(path, "environment.wind.speedOverGround") == 0) {
-          HandleSpeed(value, 3, 665);
+          tws = HandleSpeed(value);
         } else if (strcmp(path, "environment.wind.angleApparent") == 0) {
-          HandleDEG(value, 303, 505);
+          angleApparent = HandleDEG(value);
         } else if (strcmp(path, "environment.wind.speedApparent") == 0) {
-          HandleSpeed(value, 303, 665);
+          aws = HandleSpeed(value);
         }  else if (strcmp(path, "environment.depth.belowSurface") == 0) {
-          display.setCursor(3, 25);
-          display.printf("%2.1f", value);
-          Serial.printf("Ausgabe: %2.1f \n", value);
+          depth = value;
+          //Serial.printf("Ausgabe: %2.1f \n", depth);
         } else if (strcmp(path, "navigation.courseOverGroundTrue") == 0) {
-          HandleDEG(value, 303, 25);
+          courseOverGroundTrue = HandleDEG(value);
         } else if (strcmp(path, "navigation.speedThroughWater") == 0) {
-          HandleSpeed(value, 3, 185);
+          speedThroughWater = HandleSpeed(value);
         } else if (strcmp(path, "navigation.speedOverGround") == 0) {
-          HandleSpeed(value, 303, 185);
+          speedOverGround = HandleSpeed(value);
         }
       }
-      display.partialUpdate();
+      
     } else {
       Serial.println("Received JSON without 'updates' key or empty updates array.");
     }
@@ -292,6 +339,53 @@ void wsMessageHandler(WebsocketsMessage message){
       Serial.println(e.what());
       return;
     }      
+}
+
+void displayRound() {
+  if (longitude != longitude_old || latitude != latitude_old){
+    displayNavigationPosition();
+  }
+  if (pressure != pressure_old || severity != severity_old || strcmp(tendency, tendency_old) != 0 || strcmp(changerate, changerate_old) != 0) {
+    displayPressureTrend();
+  }
+  
+  if (pressure != pressure_old) {
+    display.setCursor(3, 345);
+    display.setTextSize(8);
+    display.printf("%4.0f", pressure);
+    display.partialUpdate();
+  }
+
+  display.setTextSize(10); // Set text size to 10 for large values
+  if (angleTrueGround != angleTrueGround_old) {
+    displayDEG(angleTrueGround, 3, 505);
+  }
+  if (tws != tws_old) {
+    displaySpeed(tws, 3, 665);
+  }
+  if (angleApparent != angleApparent_old) {
+    displayDEG(angleApparent, 303, 505);
+  }
+  if (aws != aws_old) {
+    displaySpeed(aws, 303, 665);
+  }
+  
+  if (depth != depth_old) {
+    display.setCursor(3, 25);
+    display.printf("%2.1f", depth);
+    display.partialUpdate();
+  }
+
+  if (courseOverGroundTrue != courseOverGroundTrue_old) {
+    displayDEG(courseOverGroundTrue, 303, 25);
+  }
+  if (speedThroughWater != speedThroughWater_old) {
+    displaySpeed(speedThroughWater, 3, 185);
+  }
+
+  if (speedOverGround != speedOverGround_old) {
+    displaySpeed(speedOverGround, 303, 185);
+  }
 }
 
 void setup() {
@@ -368,8 +462,15 @@ void setup() {
     Serial.println("Failed to send JSON subscribe file");
     display.println("Failed to send JSON subscribe file");
   }
-
   display.partialUpdate(); 
+  // Read Data in Background
+  xTaskCreate(
+  [](void*){
+    while (true) {
+      wsclient.poll(); // Poll the WebSocket client for incoming messages
+      vTaskDelay(10 / portTICK_PERIOD_MS); // Yield to other tasks
+    }
+  }, "Get the Data", 10000, NULL, 1, NULL);
 
   delay(1000);                                        //Wait for a second
   display.clearDisplay();                             //Clear everything in frame buffer
@@ -383,9 +484,8 @@ void setup() {
   display.clearDisplay();                             //Clear everything in frame buffer
 
   Serial.println("End Connection Stuff");
-  initDisplayText(); 
+  initDisplayText();
 }
-
 
 void loop() {
   //Serial.println("Looping..."); // Print to serial monitor
@@ -398,8 +498,8 @@ void loop() {
       Serial.println("Watchdog triggered, Init Display new...");
       initDisplayText();
     }
-
-wsclient.poll(); // Poll the WebSocket client for incoming messages
+  
+ displayRound();
   
 
 }
