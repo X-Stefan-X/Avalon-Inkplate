@@ -201,15 +201,22 @@ void wsEventHandler(WebsocketsEvent event, String data) {
 }
 
 void  HandleNavigationPosition(JsonObject valueObject) {
-  latitude = valueObject["value"]["latitude"];                               // 245.01020000000003
-  //Serial.printf("latitude: %f", latitude);  
-  longitude = valueObject["value"]["longitude"];                               // 245.01020000000003
-  //Serial.printf("longitude: %f", longitude);
+  if (latitude != valueObject["value"]["latitude"]) {
+    latitude_old = latitude;
+    latitude = valueObject["value"]["latitude"];                               // 245.01020000000003
+    Serial.printf("Latitude: %f old: %f\n", latitude, latitude_old);
+  }
+  if (longitude != valueObject["value"]["longitude"]) {
+    longitude_old = longitude;
+    longitude = valueObject["value"]["longitude"];                               // 245.01020000000003
+    Serial.printf("Longitude: %f old: %f\n", longitude, longitude_old);
+  }
 }
 void displayNavigationPosition() {
   int position_x = 303;
   int position_y = 345;
 
+  Serial.printf("Printing Navigation Position: %f, %f\n", latitude, longitude);
   // Print values
   display.setCursor(position_x, position_y);
   display.setTextSize(3);
@@ -219,18 +226,28 @@ void displayNavigationPosition() {
   display.partialUpdate();
 }
 void HandlePressureTrend(JsonObject valueObject) {
-  severity = valueObject["value"]["severity"];                               // 245.01020000000003
-  //Serial.printf("severity: %f", severity);
-  tendency = valueObject["value"]["tendency"];                               // 245.01020000000003
-  //Serial.printf("tendency: %s", tendency);  
-  changerate = valueObject["value"]["changerate"];                               // 245.01020000000003
-  //Serial.printf("changerate: %s", changerate);
+  Serial.printf("Handle Pressure Trend: %s\n", valueObject["value"].as<String>().c_str());
+  if (severity != valueObject["value"]["severity"]) {
+    severity_old = severity;
+    severity = valueObject["value"]["severity"];
+    Serial.printf("severity: %f old: %f\n", severity, severity_old);
+  }
+  if (tendency != valueObject["value"]["tendency"]) {
+    tendency_old = strdup(tendency);
+    tendency = strdup(valueObject["value"]["tendency"]);
+    Serial.printf("tendency: %s old: %s\n", tendency, tendency_old);
+  }
+  if (changerate != valueObject["value"]["changerate"]) {
+    changerate_old = strdup(changerate);
+    changerate = strdup(valueObject["value"]["changerate"]);
+    Serial.printf("changerate: %s old: %s\n", changerate, changerate_old);
+  }
 }
 void displayPressureTrend() {
   int position_x = 3;
   int position_y = 425;
 
-  //Serial.println("Printing Barometer Trend");
+  Serial.printf("Printing Barometer Trend: %1.0f %s, %s\n", severity, tendency, changerate);
   display.setCursor(position_x, position_y);
   display.setTextSize(3);
   display.printf("T: %1.0f %s", severity, tendency);
@@ -245,7 +262,7 @@ void displaySpeed(double value, int position_x, int position_y) {
   display.setCursor(position_x, position_y);
   value = value * 1.94384;
   display.printf("%2.1f", value);
-  //Serial.printf("Ausgabe: %2.1f \n", value);
+  Serial.printf("Ausgabe: %2.1f \n", value);
   display.partialUpdate();
 }
 double HandleDEG(double value) {
@@ -255,7 +272,7 @@ void displayDEG(double value, int position_x, int position_y) {
   display.setCursor(position_x, position_y);
   value = value * RAD_TO_DEG;
   display.printf("%3.0f", value);
-  //Serial.printf("Ausgabe: %3.0f \n", value);
+  Serial.printf("Ausgabe: %3.0f \n", value);
   display.partialUpdate();
 }
 
@@ -297,40 +314,83 @@ void wsMessageHandler(WebsocketsMessage message){
       Serial.printf("Timestamp: %s \n", timestamp);
 
       JsonObject valueObject = update["values"][0];
+      if (valueObject.isNull()) {
+        Serial.println("Received update without values. - This is not expected.");
+        return;
+      }
       const char *path = valueObject["path"];                      // "navigation.position"
       Serial.printf("Path: %s \n", path);
 
+      
       if (strcmp(path, "navigation.position") == 0) {
         HandleNavigationPosition(valueObject);
+        return;
       } else if (strcmp(path, "environment.barometer.trend") == 0) {
         HandlePressureTrend(valueObject);
+        return;
       } else {
         double value = valueObject["value"];                               // 245.01020000000003
-        //Serial.printf("Value: %f ", value);
+        Serial.printf("Value: %f \n", value);
         
         if (strcmp(path, "environment.outside.pressure") == 0) {
-          pressure = value / 100;
-          //Serial.printf("Ausgabe: %4.0f \n", pressure);
+          if (pressure != value / 100) {
+            pressure_old = pressure;
+            pressure = value / 100;
+           //Serial.printf("Ausgabe: %4.0f \n", pressure);
+          }
+          return;
         } else if (strcmp(path, "environment.wind.angleTrueGround") == 0) {
-          angleTrueGround = HandleDEG(value);
+          if (angleTrueGround != HandleDEG(value)) {
+            angleTrueGround_old = angleTrueGround;
+            angleTrueGround = HandleDEG(value);
+          }
+          return;
         } else if (strcmp(path, "environment.wind.speedOverGround") == 0) {
-          tws = HandleSpeed(value);
+          if (tws != HandleSpeed(value)) {
+            tws_old = tws;
+            tws = HandleSpeed(value);
+          }
+          return;
         } else if (strcmp(path, "environment.wind.angleApparent") == 0) {
-          angleApparent = HandleDEG(value);
+          if (angleApparent != HandleDEG(value)) {
+            angleApparent_old = angleApparent;
+            angleApparent = HandleDEG(value);
+          }
+          return;
         } else if (strcmp(path, "environment.wind.speedApparent") == 0) {
-          aws = HandleSpeed(value);
-        }  else if (strcmp(path, "environment.depth.belowSurface") == 0) {
-          depth = value;
-          //Serial.printf("Ausgabe: %2.1f \n", depth);
+          if (aws != HandleSpeed(value)) {
+            aws_old = aws;
+            aws = HandleSpeed(value);
+          }
+          return;
+        } else if (strcmp(path, "environment.depth.belowSurface") == 0) {
+          if (depth != value) {
+            depth_old = depth;
+            depth = value;
+            //Serial.printf("Ausgabe: %2.1f \n", depth);
+          }
+          return;
         } else if (strcmp(path, "navigation.courseOverGroundTrue") == 0) {
-          courseOverGroundTrue = HandleDEG(value);
+          if (courseOverGroundTrue != HandleDEG(value)) {
+            courseOverGroundTrue_old = courseOverGroundTrue;
+            courseOverGroundTrue = HandleDEG(value);
+          }
+          return;
         } else if (strcmp(path, "navigation.speedThroughWater") == 0) {
-          speedThroughWater = HandleSpeed(value);
+          if (speedThroughWater != HandleSpeed(value)) {
+            speedThroughWater_old = speedThroughWater;
+            speedThroughWater = HandleSpeed(value);
+          }
+          return;
         } else if (strcmp(path, "navigation.speedOverGround") == 0) {
-          speedOverGround = HandleSpeed(value);
+          if (speedOverGround != HandleSpeed(value)) {
+            speedOverGround_old = speedOverGround;
+            speedOverGround = HandleSpeed(value);
+          }
+          return;
         }
       }
-      
+
     } else {
       Serial.println("Received JSON without 'updates' key or empty updates array.");
     }
@@ -345,10 +405,13 @@ void displayRound() {
   if (longitude != longitude_old || latitude != latitude_old){
     displayNavigationPosition();
   }
-  if (pressure != pressure_old || severity != severity_old || strcmp(tendency, tendency_old) != 0 || strcmp(changerate, changerate_old) != 0) {
-    displayPressureTrend();
+  if (severity != 0 || (tendency != nullptr && tendency[0] == '\0') || (changerate != nullptr && changerate[0] == '\0')) {
+      if (severity != severity_old || strcmp(tendency, tendency_old) != 0 || strcmp(changerate, changerate_old) != 0) {
+      Serial.printf("Display Pressure Trend: %1.0f %s, %s\n", severity, tendency, changerate);
+      Serial.printf("Old Pressure Trend: %1.0f %s, %s\n", severity_old, tendency_old, changerate_old);
+      displayPressureTrend();
+    }
   }
-  
   if (pressure != pressure_old) {
     display.setCursor(3, 345);
     display.setTextSize(8);
@@ -500,6 +563,7 @@ void loop() {
     }
   
  displayRound();
-  
+  Serial.printf("Log Trend Values: %1.0f %s, %s old: %1.0f %s, %s \n", severity, tendency, changerate, severity_old, tendency_old, changerate_old);
+
 
 }
