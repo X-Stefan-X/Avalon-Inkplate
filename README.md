@@ -1,16 +1,15 @@
-# Inkplate-platformio
-Compiling Inkplate6 with Platformio instead of Arduino IDE
+#Avalon-Inkplate 
 
-### Select your test
+Nutzt ein Inkplate 6 für die Anzeige wichtiger Navigationsdaten auf einer Segelyacht. 
 
-Just edit platformio.ini and uncomment only one of the src_dir folders to select what example to run:
+Der dritte Versuch. Erster war ohne FreeRTOS gebuat. Zweiter war mit SensESP und jetzt direkt mit Websocket und FreeRTOS. So ist das Abrufen der Daten von SignalK getrennt von der Anzeige der Daten. Die Daten teilen sich auch in zwei Gruppen und werden unterschiedlich oft neu Dargestellt.
 
-    [platformio]
-    default_envs = esp32
-    # Select what example to compile uncommenting only one of this lines:
-    #src_dir = examples/1. Basic Inkplate Functionality/1-Inkplate_basic_monochrome
-    src_dir = examples/1. Basic Inkplate Functionality/2-Inkplate_basic_grayscale
 
-That will select the 2-Inkplate_basic_grayscale cpp file of the folder examples/1. Basic Inkplate Functionality and compile it. Not ideal but lets you have many different tests under the same codebase.
-
-Only examples of the 1. and 2. sections are done. Just rename to cpp and add new examples if you feel like
+Features
+	•	Unterstützung für Inkplate 6 Displays mit E-Paper-Technologie.
+	•	WebSocket zu Signal K 
+    •	Beim Start ein Foto vom Boot. ;)
+    •	Daten"klassen" für unterschiedlichen Refresh
+    •	Umrechnen der gelieferten Daten in Anzeigedaten (Nautisch EU)
+    •	Verbindungsverlust Erkennung
+    
