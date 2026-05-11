@@ -343,9 +343,9 @@ void subscribeToSignalK() {
   subscribePath("navigation.courseOverGroundTrue", FAST_UPDATE_INTERVAL);
   subscribePath("navigation.speedThroughWater", FAST_UPDATE_INTERVAL);
   subscribePath("navigation.speedOverGround", FAST_UPDATE_INTERVAL);
-  subscribePath("environment.wind.angleTrueGround", FAST_UPDATE_INTERVAL);
+  subscribePath("environment.wind.angleTrue", FAST_UPDATE_INTERVAL);
   subscribePath("environment.wind.angleApparent", FAST_UPDATE_INTERVAL);
-  subscribePath("environment.wind.speedOverGround", FAST_UPDATE_INTERVAL);
+  subscribePath("environment.wind.speedTrue", FAST_UPDATE_INTERVAL);
   subscribePath("environment.wind.speedApparent", FAST_UPDATE_INTERVAL);
   subscribePath("environment.outside.pressure", SLOW_UPDATE_INTERVAL);
   subscribePath("navigation.position", SLOW_UPDATE_INTERVAL);
@@ -406,13 +406,13 @@ void webSocketTask(void *parameter) {
         val = safeParse(findValPtr(rxBuffer, "navigation.speedOverGround"));
         if (val != -9999.0) { navData.sog = convertUnit(val, "m/s", "sog"); navData.anyChanged = true; }
         
-        val = safeParse(findValPtr(rxBuffer, "environment.wind.angleTrueGround"));
+        val = safeParse(findValPtr(rxBuffer, "environment.wind.angleTrue"));
         if (val != -9999.0) { navData.twa = convertUnit(val, "rad", "windangle"); navData.anyChanged = true; }
         
         val = safeParse(findValPtr(rxBuffer, "environment.wind.angleApparent"));
         if (val != -9999.0) { navData.awa = convertUnit(val, "rad", "windangle"); navData.anyChanged = true; }
         
-        val = safeParse(findValPtr(rxBuffer, "environment.wind.speedOverGround"));
+        val = safeParse(findValPtr(rxBuffer, "environment.wind.speedTrue"));
         if (val != -9999.0) { navData.tws = convertUnit(val, "m/s", "windspeed"); navData.anyChanged = true; }
         
         val = safeParse(findValPtr(rxBuffer, "environment.wind.speedApparent"));
@@ -602,7 +602,7 @@ void displayNavigationData() {
   display.print(buffer);
 
   display.fillRect(300, 500, 270, 110, WHITE);
-  snprintf(buffer, sizeof(buffer), "%3.0f", navData.tws);
+  snprintf(buffer, sizeof(buffer), "%3.0f", navData.awa);
   display.setCursor(300, 600);
   display.print(buffer);
 
