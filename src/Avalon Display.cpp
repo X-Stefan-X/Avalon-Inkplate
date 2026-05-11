@@ -70,6 +70,7 @@ EnvironmentData envData = {0};
 
 bool wsConnected = false;
 bool displayErrorMode = false;
+bool wifiEverConnected = false;
 unsigned long lastWsHeartbeat = 0; 
 const unsigned long WS_TIMEOUT = 30000;  // 30s Timeout
 
@@ -355,7 +356,7 @@ void subscribeToSignalK() {
   subscribePath("navigation.courseOverGroundTrue", FAST_UPDATE_INTERVAL);
   subscribePath("navigation.speedThroughWater", FAST_UPDATE_INTERVAL);
   subscribePath("navigation.speedOverGround", FAST_UPDATE_INTERVAL);
-  subscribePath("environment.wind.angleTrue", FAST_UPDATE_INTERVAL);
+  subscribePath("environment.wind.angleTrueWater", FAST_UPDATE_INTERVAL);
   subscribePath("environment.wind.angleApparent", FAST_UPDATE_INTERVAL);
   subscribePath("environment.wind.speedTrue", FAST_UPDATE_INTERVAL);
   subscribePath("environment.wind.speedApparent", FAST_UPDATE_INTERVAL);
@@ -418,7 +419,7 @@ void webSocketTask(void *parameter) {
         val = safeParse(findValPtr(rxBuffer, "navigation.speedOverGround"));
         if (val != -9999.0) { navData.sog = convertUnit(val, "m/s", "sog"); navData.anyChanged = true; }
         
-        val = safeParse(findValPtr(rxBuffer, "environment.wind.angleTrue"));
+        val = safeParse(findValPtr(rxBuffer, "environment.wind.angleTrueWater"));
         if (val != -9999.0) { navData.twa = convertUnit(val, "rad", "windangle"); navData.anyChanged = true; }
         
         val = safeParse(findValPtr(rxBuffer, "environment.wind.angleApparent"));
@@ -684,12 +685,18 @@ void displayEnvironmentData() {
 void onWiFiEvent(WiFiEvent_t event) {
   switch (event) {
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-      Serial.println("WiFi lost, reconnecting...");
-      WiFi.reconnect();
+      if (wifiEverConnected) {
+        Serial.println("WiFi lost, reconnecting...");
+        WiFi.reconnect();
+      }
       break;
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-      Serial.println("WiFi reconnected.");
-      discoverSignalK();
+      if (!wifiEverConnected) {
+        wifiEverConnected = true;
+      } else {
+        Serial.println("WiFi reconnected.");
+        discoverSignalK();
+      }
       break;
     default:
       break;
