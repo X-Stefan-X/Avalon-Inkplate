@@ -2,7 +2,7 @@
 repo: https://github.com/X-Stefan-X/Avalon-Inkplate
 hardware: Inkplate 6 (ESP32-basiertes E-Paper Display)
 source-file: src/Avalon Display.cpp
-signalk-host: openplotter-test.local:3000
+signalk-host: automatisch per mDNS, Fallback openplotter-test.local:3000
 ---
 
 # Interface: Inkplate 6 (Avalon Display)
@@ -11,10 +11,27 @@ Reines Anzeigegerät — kein SensESP, keine GPIO-Aktoren. Verbindet sich direkt
 
 ## Architektur
 
-- **FreeRTOS** mit 3 Tasks: `WebSocketTask` (Core 0), `DisplayTask` (Core 0), `SlowDataTask` (Core 1)
-- **WebSocket** für Echtzeit-Navigationsdaten (Subscribe/Delta)
+- **FreeRTOS** mit 3 Tasks: `WebSocketTask` (Core 0, Prio 3), `DisplayTask` (Core 0, Prio 2), `SlowDataTask` (Core 1, Prio 1)
+- **WebSocket** für Echtzeit-Navigationsdaten (Subscribe/Delta, Policy `fixed`)
 - **HTTP REST** für Barometer-Trend (polling alle 10 s)
 - Zwei Refresh-Klassen: Navigation (alle 500 ms), Umgebung (alle 3 s)
+- Statischer RX-Puffer: 4096 Byte (kein heap-Alloc im ISR-Pfad)
+- Mutex schützt Display-Zugriff zwischen Tasks (500 ms Timeout)
+- WiFi-Reconnect über `onWiFiEvent()` — event-getrieben, kein Polling
+
+## WebSocket-Konfiguration
+
+| Parameter | Wert |
+|---|---|
+| URL | `/signalk/v1/stream?subscribe=none` |
+| Reconnect-Intervall | 5000 ms |
+| Heartbeat Ping | 15000 ms |
+| Heartbeat Timeout | 3000 ms / 2 Versuche |
+| Disconnect-Timeout | 30 s |
+
+## SignalK-Host-Discovery
+
+Host und Port werden beim Start per mDNS (`_signalk-ws._tcp`) automatisch ermittelt. Nach jedem WiFi-Reconnect (`STA_GOT_IP`) wird `discoverSignalK()` erneut aufgerufen. Fallback: `openplotter-test.local:3000`.
 
 ## Subscribes (SignalK → Anzeige)
 
@@ -26,9 +43,9 @@ Reines Anzeigegerät — kein SensESP, keine GPIO-Aktoren. Verbindet sich direkt
 | `navigation.courseOverGroundTrue` | rad | COG in ° | × RAD_TO_DEG |
 | `navigation.speedThroughWater` | m/s | STW in kn | × 1.94384 |
 | `navigation.speedOverGround` | m/s | SOG in kn | × 1.94384 |
-| `environment.wind.angleTrueGround` | rad | TWA in ° | × RAD_TO_DEG |
+| `environment.wind.angleTrue` | rad | TWA in ° | × RAD_TO_DEG |
 | `environment.wind.angleApparent` | rad | AWA in ° | × RAD_TO_DEG |
-| `environment.wind.speedOverGround` | m/s | TWS in kn | × 1.94384 |
+| `environment.wind.speedTrue` | m/s | TWS in kn | × 1.94384 |
 | `environment.wind.speedApparent` | m/s | AWS in kn | × 1.94384 |
 
 ### Langsame Daten — WebSocket, Periode 10.000 ms
@@ -36,7 +53,7 @@ Reines Anzeigegerät — kein SensESP, keine GPIO-Aktoren. Verbindet sich direkt
 | SK-Pfad | Einheit SK | Anzeige | Konvertierung |
 |---|---|---|---|
 | `environment.outside.pressure` | Pa | Luftdruck in hPa | ÷ 100 |
-| `navigation.position` | lat/lon (°) | Position Lat/Lon | — |
+| `navigation.position` | lat/lon (°) | Position Lat/Lon | — (eigener String-Parser, key-sensitiv) |
 
 ### Langsame Daten — HTTP REST, alle 10 s
 
@@ -60,8 +77,20 @@ Reines Anzeigegerät — kein SensESP, keine GPIO-Aktoren. Verbindet sich direkt
 ├─────────────────┼─────────────────┤
 │  TWS in kn      │  AWS in kn      │
 └─────────────────┴─────────────────┘
-         (Inkplate / Avalon 2026)
 ```
+
+Mittelspalte: schwarzer Balken bei x=280, beschriftet mit „Inkplate 4 Avalon 2026" (vertikal).
+
+## Startup-Sequenz
+
+1. WiFi-Scan (bis zu 10 Netzwerke auf Display)
+2. WiFi-Event-Handler registrieren (`WiFi.onEvent`)
+3. WiFi-Verbindung (SSID/PASS aus build flags)
+4. `discoverSignalK()` — mDNS-Suche nach `_signalk-ws._tcp`
+5. Splash-Screen: Bild `IMG_8906` + „Willkommen auf Avalon!" (3 s)
+6. WebSocket-Verbindung zu SignalK
+7. Bei `WStype_CONNECTED`: `initDisplayText()` → statisches Layout aufbauen
+8. Subscribe aller Pfade
 
 ## Hardware Interface
 
@@ -71,9 +100,8 @@ Reines Anzeigegerät — kein SensESP, keine GPIO-Aktoren. Verbindet sich direkt
 | WiFi | WebSocket + HTTP → SignalK Server |
 | Kein GPIO-Ausgang | Nur Anzeige, keine Aktoren |
 
-## Offene Punkte / Hinweise
+## Hinweise
 
-- ⚠️ `environment.wind.speedOverGround` als TWS ist ungewöhnlich — SignalK-Standard für True Wind Speed wäre `environment.wind.speedTrue`
-- ⚠️ Bug in `displayNavigationData()`: Zeile für TWS-Feld (Zeile ~695) rendert `navData.tws` statt `navData.twa` — TWA wird in dieser Zeile nicht korrekt angezeigt
-- SignalK-Host ist hardcodiert: `openplotter-test.local` — kein mDNS-Fallback
-- Drucktendenz kommt parallel über HTTP REST, nicht über WebSocket-Subscribe
+- `navigation.position` verwendet `safeParsePos(ptr, key)` — key-Parameter stellt korrekte Offset-Berechnung für `"latitude":` (11 Zeichen) und `"longitude":` (12 Zeichen) sicher
+- `DisplayError()` wird ausschließlich durch `displayUpdateTask` unter Mutex aufgerufen — kein direkter Display-Zugriff aus dem WebSocket-Callback
+

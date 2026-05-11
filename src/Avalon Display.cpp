@@ -9,6 +9,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WebSocketsClient.h>
+#include <ESPmDNS.h>
 #include "ArduinoJson.h"
 #include "Arduino.h"
 #include "Fonts/FreeMonoBold24pt7b.h"
@@ -16,10 +17,9 @@
 #include "Fonts/FreeSans12pt7b.h"
 #include "IMG_8906.h"
 
-// Connection settings
-const char* SIGNALK_HOST = "openplotter-test.local";
-const int SIGNALK_HTTP_PORT = 3000;
-const int SIGNALK_WS_PORT = 3000;
+// Connection settings — werden ggf. durch mDNS-Discovery überschrieben
+char signalkHost[64] = "openplotter-test.local";
+int signalkPort = 3000;
 // Update intervals
 const unsigned long SLOW_UPDATE_INTERVAL = 10000;
 const unsigned long FAST_UPDATE_INTERVAL = 200;
@@ -84,8 +84,10 @@ void displayNavigationData();
 void displayEnvironmentData();
 double convertUnit(double value, const char* unit, const char* dataType);
 void drawCenteredText(int x, int y, int w, int h, const char* text);
-double safeParsePos(const char* ptr);
+double safeParsePos(const char* ptr, const char* key);
 void DisplayError();
+void discoverSignalK();
+void onWiFiEvent(WiFiEvent_t event);
 
 // static buffer
 char rxBuffer[4096];
@@ -194,6 +196,18 @@ void DisplayError() {
   Serial.println("Displayed WS Connection Error!");
 }
 
+void discoverSignalK() {
+  Serial.println("mDNS: suche SignalK-Server...");
+  int n = MDNS.queryService("signalk-ws", "tcp");
+  if (n > 0) {
+    strncpy(signalkHost, MDNS.hostname(0).c_str(), sizeof(signalkHost) - 1);
+    signalkPort = MDNS.port(0);
+    Serial.printf("mDNS: gefunden: %s:%d\n", signalkHost, signalkPort);
+  } else {
+    Serial.printf("mDNS: nichts gefunden, Fallback: %s:%d\n", signalkHost, signalkPort);
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   display.begin();
@@ -229,6 +243,8 @@ void setup() {
     delay(2000);
   }
 
+  WiFi.onEvent(onWiFiEvent);
+
   display.print('\n');
   display.print("Connecting...");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -243,6 +259,7 @@ void setup() {
   display.print("OK");
   display.partialUpdate();
   delay(100);
+  discoverSignalK();
   display.clearDisplay();
   display.drawImage(IMG_8906, 0, 0, IMG_8906_w, IMG_8906_h);
   display.display();
@@ -264,7 +281,7 @@ void setup() {
   }
   
 
-  webSocket.begin(SIGNALK_HOST, SIGNALK_WS_PORT, "/signalk/v1/stream?subscribe=none");
+  webSocket.begin(signalkHost, signalkPort, "/signalk/v1/stream?subscribe=none");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
   webSocket.enableHeartbeat(15000, 3000, 2);
@@ -286,7 +303,6 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       wsConnected = false;
       displayErrorMode = true;
       lastWsHeartbeat = millis();
-      DisplayError();
       break;
       
     case WStype_CONNECTED:
@@ -322,15 +338,11 @@ void subscribePath(const char* path, int period) {
   delay(100);
 }
 
-double safeParsePos(const char* ptr) {
+double safeParsePos(const char* ptr, const char* key) {
   if (ptr == NULL) return -9999.0;
-  ptr += strlen("\"latitude\":");  // Skip "latitude":
-  // oder für longitude:
-  // ptr += strlen("\"longitude\":");
-  
-  while (*ptr && (*ptr == ' ' || *ptr == ':' || *ptr == '"' || *ptr == '{' || *ptr == '}')) ptr++;
-  if (!*ptr || !isdigit(*ptr) && *ptr != '-' && *ptr != '.') return -9999.0;
-  
+  ptr += strlen(key);
+  while (*ptr == ' ' || *ptr == '\t') ptr++;
+  if (!*ptr || (!isdigit((unsigned char)*ptr) && *ptr != '-' && *ptr != '.')) return -9999.0;
   char* endPtr;
   double val = strtod(ptr, &endPtr);
   return (endPtr > ptr) ? val : -9999.0;
@@ -434,8 +446,8 @@ void webSocketTask(void *parameter) {
             const char* lonPtr = strstr(valuePtr, "\"longitude\":");
             
             if (latPtr && lonPtr) {
-              double lat = safeParsePos(latPtr);
-              double lon = safeParsePos(lonPtr);
+              double lat = safeParsePos(latPtr, "\"latitude\":");
+              double lon = safeParsePos(lonPtr, "\"longitude\":");
               
               if (lat > -90 && lat < 90 && lon > -180 && lon < 180) {
                 envData.latitude = lat;
@@ -459,9 +471,19 @@ void webSocketTask(void *parameter) {
 void displayUpdateTask(void *parameter) {
   unsigned long lastNavUpdate = 0;
   unsigned long lastEnvUpdate = 0;
+  bool errorShown = false;
 
   while (true) {
     unsigned long now = millis();
+
+    if (displayErrorMode && !errorShown) {
+      if (xSemaphoreTake(displayMutex, 500 / portTICK_PERIOD_MS) == pdTRUE) {
+        DisplayError();
+        xSemaphoreGive(displayMutex);
+        errorShown = true;
+      }
+    }
+    if (!displayErrorMode) errorShown = false;
 
     if (navData.anyChanged && (now - lastNavUpdate >= NAV_UPDATE_INTERVAL)) {
       
@@ -503,7 +525,11 @@ void slowDataTask(void *parameter) {
       continue;
     }
 
-    if (fetchSingleValue(http, "http://openplotter-test.local:3000/signalk/v1/api/vessels/self/environment/barometer/trend")) {
+    char barometerUrl[128];
+    snprintf(barometerUrl, sizeof(barometerUrl),
+             "http://%s:%d/signalk/v1/api/vessels/self/environment/barometer/trend",
+             signalkHost, signalkPort);
+    if (fetchSingleValue(http, barometerUrl)) {
       envData.anyChanged = true;
     }
 
@@ -655,18 +681,26 @@ void displayEnvironmentData() {
   display.partialUpdate();
 }
 
-void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi lost, reconnecting...");
-    WiFi.reconnect();
-    delay(5000);
+void onWiFiEvent(WiFiEvent_t event) {
+  switch (event) {
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      Serial.println("WiFi lost, reconnecting...");
+      WiFi.reconnect();
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      Serial.println("WiFi reconnected.");
+      discoverSignalK();
+      break;
+    default:
+      break;
   }
+}
 
+void loop() {
   static unsigned long lastStatusCheck = 0;
   if (millis() - lastStatusCheck > 30000) {
     Serial.printf("Free heap: %d | WS: %s\n", ESP.getFreeHeap(), wsConnected ? "OK" : "NO");
     lastStatusCheck = millis();
   }
-
   delay(1000);
 }
